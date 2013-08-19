@@ -6,7 +6,9 @@ include REXML
 last_fight = REXML::Document.new File.new("lastFight")
 
 puts "导入原始log..."
-combat_log = last_fight.elements["*/dict/string/text()"].to_s.split(';')		#导出记录到 "combat_log"
+combat_log = Array.new
+last_fight.elements.each("*/dict/string") { |string| combat_log = string.text.split(';') if string.text.include?(';') }	#导出记录到 "combat_log"
+#combat_log = last_fight.elements["*/dict/string"].text.split(';')
 puts "完成"
 
 puts "导入参战卡牌、法球和英雄信息..." 
@@ -91,7 +93,9 @@ combat_log.map! { |log|
 			elsif split_log[0] == "ARMOR"
 				log = card_name[card_sid[split_value[0]]] + "(" + split_value[0] + ")" + "触发减伤" # + ": " + effect_name[split_value[1]] + "(" + split_value[1] + ")"
 			elsif split_log[0] == "ADD_LIFE"
-				log = card_name[card_sid[split_value[0]]] + "(" + split_value[0] + ")" + "生命上限增加" + ": " + split_value[1]
+				log = card_name[card_sid[split_value[0]]] + "(" + split_value[0] + ")" + "生命恢复" + ": " + split_value[1]
+			elsif split_log[0] == "ADD_MAX_LIFE"
+				log = card_name[card_sid[split_value[0]]] + "(" + split_value[0] + ")" + "增加生命上限" + ": " + split_value[1]
 			elsif split_log[0] == "BLOODTHIRSTINESS"
 				log = card_name[card_sid[split_value[0]]] + "(" + split_value[0] + ")" + "攻击吸血" + ": " + split_value[1]
 			elsif split_log[0] == "ATTACK_VALUE"
@@ -111,12 +115,17 @@ combat_log.map! { |log|
 			elsif split_log[0] == "BE_ATTACK_IDS"
 				all_target = ""
 				split_value.each { |target| all_target += card_name[card_sid[target]] + "(" + target + ")" + " " }
-				log = "被攻击: " + all_target  
+				log = "目标: " + all_target  
 			elsif split_log[0] == "HUIHUN"
 				all_target = ""
 				caster = split_value.shift
 				split_value.each { |target| all_target += card_name[card_sid[target]] + "(" + target + ")" + " " }
 				log = card_name[card_sid[caster]] + "复活: " + all_target + "到牌堆"
+			elsif split_log[0] == "COUNTERATTACK"
+				all_target = ""
+				caster = split_value.shift
+				split_value.each { |target| all_target += card_name[card_sid[target]] + "(" + target + ")" + " " }
+				log = card_name[card_sid[caster]] + "反击: " + all_target
 			elsif split_log[0] == "BURN"
 				all_target = ""
 				split_value.each { |target| all_target += card_name[card_sid[target]] + "(" + target + ")" + " " }
@@ -152,8 +161,6 @@ combat_log.map! { |log|
 				log = card_name[card_sid[split_log[1]]] +  "(" + split_log[1] + ")" + "下场"			
 			elsif split_log[0] == "IMMUNITY"
 				log = card_name[card_sid[split_log[1]]] +  "(" + split_log[1] + ")" + ": " + "免疫"
-			elsif split_log[0] == "COUNTERATTACK"
-				log = card_name[card_sid[split_log[1]]] +  "(" + split_log[1] + ")" + ": " + "反击"
 			elsif split_log[0] == "BLOCK"
 				log = card_name[card_sid[split_log[1]]] +  "(" + split_log[1] + ")" + ": " + "格挡"
 			elsif split_log[0] == "DODGE"
@@ -166,10 +173,14 @@ combat_log.map! { |log|
 				log = "被灼烧" + ": " + card_name[card_sid[split_log[1]]] + "(" + split_log[1] + ")"
 			elsif split_log[0] == "RETURN"
 				log = card_name[card_sid[split_log[1]]] +  "(" + split_log[1] + ")" + ": " + "回到牌堆"
-			elsif split_log[0] == "ZHUNSHENG"
+			elsif split_log[0] == "FUHUO"
 				log = card_name[card_sid[split_log[1]]] +  "(" + split_log[1] + ")" + ": " + "回到手牌"			
+			elsif split_log[0] == "ZHUNSHENG"
+				log = card_name[card_sid[split_log[1]]] +  "(" + split_log[1] + ")" + ": " + "薄葬发动"				
 			elsif split_log[0] == "DELIVER"
 				log = card_name[card_sid[split_log[1]]] +  "(" + split_log[1] + ")" + ": " + "进入墓地"
+			elsif split_log[0] == "TALISMAN_GRAYHOME"
+				log = orb_name[orb_sid[split_log[1]]] +  "(" + split_log[1] + ")" + ": " + "次数用尽"			
 			elsif split_log[0] == "SWEEPAWAY"
 				log = "被横扫" + ": " + card_name[card_sid[split_log[1]]] + "(" + split_log[1] + ")"
 			elsif split_log[0] == "ATTACK_CAMP"	
@@ -178,16 +189,17 @@ combat_log.map! { |log|
 				log = "战斗结束"
 			elsif split_log[0] == "BE_ATTACK_IDS"
 				if card_sid[split_log[1]].nil?
-					log = "被攻击: " + hero_sid[split_log[1]] + "(" + split_log[1] + ")"
+					log = "目标: " + hero_sid[split_log[1]] + "(" + split_log[1] + ")"
 				else
-					log = "被攻击: " + card_name[card_sid[split_log[1]]] + "(" + split_log[1] + ")"
+					log = "目标: " + card_name[card_sid[split_log[1]]] + "(" + split_log[1] + ")"
 				end
 			end	
 		end
 		
 	elsif log == "CDRUN"	
 		log = "【回合结束】"
-			
+	elsif log == "TALISMAN_ATT_OVER"	
+		log = "【法球动作结束】"			
 	end
 
 	log
@@ -195,6 +207,8 @@ combat_log.map! { |log|
 puts "完成"
 
 File.open('lastFight.log', 'w') { |file| 
-	file.puts "【效果的描述不准确，不要管它！】"
+	file.puts "【### 效果的描述不准确，不要管它！ ###】"
+	file.puts "【### 效果的描述不准确，不要管它！ ###】"
+	file.puts "【### 效果的描述不准确，不要管它！ ###】"
 	file.puts combat_log 
 }
