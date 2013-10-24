@@ -58,7 +58,7 @@ cards_xml.elements.each("//objects/sample") { |current_card|	#读卡牌数据
 			card[sid].assign(attr.first, attr.last) if sid != 0 
 		end
 	}
-	#puts ("#{current_card.elements["method/name"].text}, with the #{sid}")
+	#puts ("#{current_card.elements["method/ints"].text}, with the #{sid}")
 	card_name[sid] = card[sid].cname
 	card[sid].set_skills = current_card.elements["method/ints"].text.split(/,/)
 	#puts card[sid].set_skills
@@ -326,73 +326,6 @@ effects_xml.elements.each("//objects/sample") { |current_effect|
 	effect_detail[sid] = effect[sid].bookdes
 }
 
-rewards_xml = REXML::Document.new File.new("sample.prize.xml")
-reward = []
-
-class Reward
-	attr_accessor :sid, :currency, :gold, :money, :min_money, :max_money, :exp, :min_exp, :max_exp, :dynamic
-	attr_accessor :randomc, :randomt, :hide_sid, :maze_sid
-	attr_accessor :card_sids, :orb_sid
-	
-	def initialize(sid)
-		@sid = sid
-	end
-	
-	def assign(name, value)
-		if name == "currency"
-			@currency = value 
-		elsif name == "gold"
-			@gold = value
-		elsif name == "money"
-			@money = value 
-		elsif name == "minMoney"
-			@min_money = value 
-		elsif name == "maxMoney"
-			@max_money = value 
-		elsif name == "exp"
-			@exp = value
-		elsif name == "minExp"
-			@min_exp = value
-		elsif name == "maxExp"
-			@max_exp = value
-		elsif name == "dymnamic"
-			@dynamic = value
-		elsif name == "randomc"
-			@randomc = value
-		elsif name == "randomt"
-			@randomt = value
-		elsif name == "hideSid"
-			@hide_sid = value
-		elsif name == "mazeSid"
-			@maze_sid = value
-		end
-	end
-end
-
-sid = 0
-puts "读取奖励数据..."
-
-rewards_xml.elements.each("//objects/sample") { |current_reward|
-	current_reward.attributes.each	{ |attr|
-		if attr.first == "sid"
-			sid = attr.last.to_i
-			reward[attr.last.to_i] = Reward.new(attr.last) 
-		else
-			reward[sid].assign(attr.first, attr.last) if sid != 0
-		end
-	}
-
-	#puts ("#{current_reward.elements["field"].attributes["name"]}, with the #{sid}") unless current_reward.elements["field"].nil?
-
-	if current_reward.elements["field"] != nil
-		if current_reward.elements["field"].attributes["name"] == "talismans"
-			reward[sid].orb_sid = current_reward.elements["field/ints"].text.split(/,/)
-		elsif current_reward.elements["field"].attributes["name"] == "cardSids"
-			reward[sid].card_sids = current_reward.elements["field/ints"].text.split(/,/)
-		end
-	end
-	
-}
 
 require 'spreadsheet'
 xls = Spreadsheet::Workbook.new
@@ -483,38 +416,6 @@ xls = Spreadsheet::Workbook.new
 			start_row += 1
 		end
 	}	
-	
-	puts "汇入奖励数据..."
-	reward_sheet = xls.create_worksheet
-	reward_sheet.name = '奖励'
-	reward_sheet.row(0).push "sid", "召唤卡", "紫晶", "金币", "最小金币", "最大金币", "经验", "最小经验", "最大经验", "体力"
-	reward_sheet.row(0).push "卡牌概率", "法球概率", "开启隐藏关", "开启迷宫"
-	reward_sheet.row(0).push "奖励卡牌或法球"
-	effect_sheet.column(14).width = 150
-	start_row = 1
-
-	reward.each { |reward|		
-		if reward.nil?
-		else
-			reward_sheet.row(start_row).push reward.sid, reward.currency, reward.gold, reward.money, reward.min_money, reward.max_money, reward.exp, reward.min_exp, reward.max_exp, reward.dynamic
-			reward_sheet.row(start_row).push reward.randomc, reward.randomt, reward.hide_sid, reward.maze_sid
-		
-			if reward.card_sids != nil
-				reward.card_sids.map! { |card_sid|
-					card_sid = card_name[card_sid.to_i] if card_sid.to_i > 999
-					card_sid
-				}
-				#puts reward.card_sids.join(',')
-				reward_sheet.row(start_row).push reward.card_sids.join(',')
-			elsif reward.orb_sid != nil
-				reward_sheet.row(start_row).push reward.orb_sid.first + ',' + orb_name[reward.orb_sid.last.to_i]
-			end
-
-			start_row += 1
-		end
-	}
-	
-	
 	
 puts "写入文件..."
 xls.write 'Config.xls'
